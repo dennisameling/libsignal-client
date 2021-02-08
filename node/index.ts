@@ -599,6 +599,16 @@ export class SenderKeyName {
     this.nativeHandle = nativeHandle;
   }
 
+  static _fromNativeHandle(
+    nativeHandle: SignalClient.SenderKeyName
+  ): SenderKeyName {
+    return new SenderKeyName(nativeHandle);
+  }
+
+  _unsafeGetNativeHandle(): SignalClient.SenderKeyName {
+    return this.nativeHandle;
+  }
+
   static new(
     groupId: string,
     senderName: string,
@@ -616,6 +626,7 @@ export class SenderKeyName {
   senderName(): string {
     return SC.SenderKeyName_GetSenderName(this.nativeHandle);
   }
+
   senderDeviceId(): number {
     return SC.SenderKeyName_GetSenderDeviceId(this.nativeHandle);
   }
@@ -681,6 +692,16 @@ export class ServerCertificate {
 
 export class SenderKeyRecord {
   private readonly nativeHandle: SignalClient.SenderKeyRecord;
+
+  _unsafeGetNativeHandle(): SignalClient.SenderKeyRecord {
+    return this.nativeHandle;
+  }
+
+  static _fromNativeHandle(
+    nativeHandle: SignalClient.SenderKeyRecord
+  ): SenderKeyRecord {
+    return new SenderKeyRecord(nativeHandle);
+  }
 
   private constructor(nativeHandle: SignalClient.SenderKeyRecord) {
     this.nativeHandle = nativeHandle;
@@ -782,8 +803,35 @@ export class SenderCertificate {
 export class SenderKeyDistributionMessage {
   private readonly nativeHandle: SignalClient.SenderKeyDistributionMessage;
 
+  _unsafeGetNativeHandle(): SignalClient.SenderKeyDistributionMessage {
+    return this.nativeHandle;
+  }
+
   private constructor(nativeHandle: SignalClient.SenderKeyDistributionMessage) {
     this.nativeHandle = nativeHandle;
+  }
+
+  static async create(
+    name: SenderKeyName,
+    store: SenderKeyStore
+  ): Promise<SenderKeyDistributionMessage> {
+    const handle = await SC.SenderKeyDistributionMessage_Create(
+      name._unsafeGetNativeHandle(),
+      store
+    );
+    return new SenderKeyDistributionMessage(handle);
+  }
+
+  static async process(
+    name: SenderKeyName,
+    message: SenderKeyDistributionMessage,
+    store: SenderKeyStore
+  ): Promise<void> {
+    await SC.SenderKeyDistributionMessage_Process(
+      name._unsafeGetNativeHandle(),
+      message._unsafeGetNativeHandle(),
+      store
+    );
   }
 
   static new(
@@ -908,4 +956,82 @@ export class UnidentifiedSenderMessageContent {
       SC.UnidentifiedSenderMessageContent_GetSenderCert(this.nativeHandle)
     );
   }
+}
+
+/*
+export interface SessionStore {
+  storeSession(address: ProtocolAddress, session: SessionRecord): void;
+  loadSession(address: ProtocolAddress): SessionRecord | null;
+}
+
+export const enum Direction {
+  Sending,
+  Receiving,
+}
+
+export interface IdentityKeyStore {
+  getIdentityKeyPair(): IdentityKeyPair;
+  getLocalRegistrationId(): number;
+  saveIdentity(address: ProtocolAddress, identity: PublicKey): void;
+  isTrustedIdentity(
+    address: ProtocolAddress,
+    key: PublicKey,
+    dir: Direction
+  ): boolean;
+  getIdentity(address: ProtocolAddress): PublicKey | null;
+}
+
+export interface PreKeyStore {
+  getPreKey(id: number): PreKeyRecord;
+  savePreKey(id: number, record: PreKeyRecord): void;
+  removePreKey(id: number): void;
+}
+
+export interface SignedPreKeyStore {
+  getSignedPreKey(id: number): SignedPreKeyRecord;
+  saveSignedPreKey(id: number, record: SignedPreKeyRecord): void;
+}
+*/
+
+export abstract class SenderKeyStore {
+  _saveSenderKey(
+    name: SignalClient.SenderKeyName,
+    record: SignalClient.SenderKeyRecord
+  ): Promise<void> {
+    return Promise.resolve(
+      this.saveSenderKey(
+        SenderKeyName._fromNativeHandle(name),
+        SenderKeyRecord._fromNativeHandle(record)
+      )
+    );
+  }
+  _getSenderKey(
+    name: SignalClient.SenderKeyName
+  ): Promise<SignalClient.SenderKeyRecord | null> {
+    const skr = this.getSenderKey(SenderKeyName._fromNativeHandle(name));
+    if (skr == null) {
+      return Promise.resolve(null);
+    } else {
+      return Promise.resolve(skr._unsafeGetNativeHandle());
+    }
+  }
+
+  abstract saveSenderKey(name: SenderKeyName, record: SenderKeyRecord): void;
+  abstract getSenderKey(name: SenderKeyName): SenderKeyRecord | null;
+}
+
+export async function GroupCipher_Encrypt(
+  name: SenderKeyName,
+  store: SenderKeyStore,
+  message: Buffer
+): Promise<Buffer> {
+  return SC.GroupCipher_Encrypt(name._unsafeGetNativeHandle(), store, message);
+}
+
+export async function GroupCipher_Decrypt(
+  name: SenderKeyName,
+  store: SenderKeyStore,
+  message: Buffer
+): Promise<Buffer> {
+  return SC.GroupCipher_Decrypt(name._unsafeGetNativeHandle(), store, message);
 }
