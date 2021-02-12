@@ -169,11 +169,19 @@ jobs:
   node:
     name: Node
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        target_arch: [x64, ia32, arm64]
 
     needs: changes
 
     if: ${{ needs.changes.outputs.node == 'true' }}
+
+    env:
+      npm_config_arch: ${{ matrix.target_arch }}
 
     steps:
     - uses: actions/checkout@v2
@@ -193,6 +201,7 @@ jobs:
     - run: yarn format -c
 
     - name: Run yarn test
+      if: matrix.arch == 'x64'
       uses: GabrielBB/xvfb-action@v1.4
       with:
         # The tests use an Electron-based runner, so we need to set up a dummy display for them.

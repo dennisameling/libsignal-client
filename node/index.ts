@@ -7,7 +7,8 @@ import * as os from 'os';
 import bindings = require('bindings'); // eslint-disable-line @typescript-eslint/no-require-imports
 import * as SignalClient from './libsignal_client';
 
-const SC = bindings('libsignal_client_' + os.platform()) as typeof SignalClient;
+const arch = process.env.npm_config_arch || process.arch
+const SC = bindings('libsignal_client_' + os.platform() + '_' + arch) as typeof SignalClient;
 
 export class PublicKey {
   private readonly nativeHandle: SignalClient.PublicKey;
